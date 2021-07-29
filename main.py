@@ -23,11 +23,11 @@ for filename in training_data_filenames:
     file_path = os.sep.join([folder_path, filename])
     data = dpr.load_data(file_path)
     if first:
-        training_data = np.expand_dims(data, axis=0)
+        training_data = data
         first = False
     else:
         try:
-            training_data = np.concatenate((training_data, np.expand_dims(data, axis=0)), axis=0)
+            training_data = np.concatenate((training_data, data))
         except ValueError:
             "data error: dimension mismatch along dates."
 
@@ -36,4 +36,7 @@ file_path = os.sep.join([folder_path, test_data_source])
 data = dpr.load_data(file_path)
 test_data = np.expand_dims(data, axis=0)
 
-print(test_data.shape)
+# 3. Perform a knn search on the train data for the test data:
+# a. Once using SKlearn-nearestneighbors module, any base algorithm.
+
+from sklearn.neighbors import NearestNeighbors
