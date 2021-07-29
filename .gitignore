@@ -4,6 +4,9 @@ instructions.pdf
 # data
 data/
 
+# ide
+.idea
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
