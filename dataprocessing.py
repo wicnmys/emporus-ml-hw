@@ -39,10 +39,6 @@ def crop_and_reshape(data, sliding_window_size, sample_size, feature_dim):
     # concatenate along the first dimension to an array of shape (*,K)
     data = data.reshape(data.shape[0] * data.shape[1], sliding_window_size)
 
-    # HANDLE  AttributeError: 'float' object has no attribute 'sqrt' from
-    # normalize_samples function
-    # solution from: https://www.programmersought.com/article/21818799868/
-    data = np.float64(data)
     return data
 
 
@@ -63,6 +59,14 @@ def throw_nan_inf(data):
 def load_data(file_path, sliding_window_size=360, sample_size=10, feature_dim=1):
     data = load_and_assert(file_path)
     data = crop_and_reshape(data, sliding_window_size, sample_size, feature_dim)
+    # HANDLE  AttributeError: 'float' object has no attribute 'sqrt' from
+    # normalize_samples function
+    # solution from: https://www.programmersought.com/article/21818799868/
+    data = np.float64(data)
     data = normalize_samples(data)
     data = throw_nan_inf(data)
+    # HANDLE  TypeError: in method 'IndexFlat_add', argument 3 of type 'float const *'
+    # from faiss.index.add(training_data)
+    # solution from: https://github.com/facebookresearch/faiss/issues/461
+    data = np.float32(data)
     return data
