@@ -20,6 +20,7 @@ folder_path = "/home/myriam/projects/emporus-ml-hw/data"
 training_data_filenames = ["2018-01-02.npy", "2018-01-03.npy", "2018-01-04.npy", "2018-01-05.npy"]
 test_data_source = "2018-01-08.npy"
 
+max_runtime_per_method = 120
 
 first = True
 for filename in training_data_filenames:
@@ -44,7 +45,6 @@ k=10
 
 from sklearn.neighbors import NearestNeighbors
 sklearn_nbrs = NearestNeighbors(n_neighbors=k, algorithm='brute').fit(training_data)
-distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
 # REMARKS from https://scikit-learn.org/stable/modules/neighbors.html
 # when D > 15, the intrinsic dimensionality of the data is generally
 # too high for tree-based methods ==> BRUTE
@@ -53,7 +53,6 @@ distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
 import faiss
 faiss_bsc = faiss.IndexFlatL2(360)
 faiss_bsc.add(training_data)
-distances, indices = faiss_bsc.search(test_data[:5], k)
 
 # c. Once using FAISS-library (use any non flat index).
 # with the help of https://github.com/facebookresearch/faiss/wiki/Guidelines-to-choose-an-index
@@ -68,7 +67,6 @@ assert not faiss_sop.is_trained
 faiss_sop.train(training_data)
 assert faiss_sop.is_trained
 faiss_sop.add(training_data)
-distances, indices = faiss_sop.search(test_data[:5], k)
 
 speed = np.full((3, 256), np.inf)
 # using Euclidean, see
@@ -77,17 +75,16 @@ similarity = np.full((3, 256), np.inf)
 
 
 for n in range(1, 256+1):
-    print("n = " + str(n))
     ## sklearn
-    if np.sum(speed[0, np.isfinite(speed[0])]) < 210:
+    if np.sum(speed[0, np.isfinite(speed[0])]) < max_runtime_per_method:
         toc = time.perf_counter()
         distances, indices = sklearn_nbrs.kneighbors(test_data, n_neighbors=n)
         tic = time.perf_counter()
-        speed[0, n-1] = tic-toc
+        speed[0, n-1] = tic-to  c
         similarity[0, n-1] = np.mean(distances)
 
     ## faiss flat
-    if np.sum(speed[1, np.isfinite(speed[1])]) < 210:
+    if np.sum(speed[1, np.isfinite(speed[1])]) < max_runtime_per_method:
         toc = time.perf_counter()
         distances, indices = faiss_bsc.search(test_data, n)
         tic = time.perf_counter()
@@ -95,12 +92,17 @@ for n in range(1, 256+1):
         similarity[1, n - 1] = np.mean(distances)
 
     ## faiss non-flat
-    if np.sum(speed[2, np.isfinite(speed[2])]) < 210:
+    if np.sum(speed[2, np.isfinite(speed[2])]) < max_runtime_per_method:
         toc = time.perf_counter()
         distances, indices = faiss_sop.search(test_data, n)
         tic = time.perf_counter()
         speed[2, n-1] = tic-toc
         similarity[2, n - 1] = np.mean(distances)
+
+##################################
+# Plots
+#################################
+
 
 fig, axs = plt.subplots(2, 4)
 axs[0,0].plot(np.arange(1, 256+1), speed[0], 'b')
