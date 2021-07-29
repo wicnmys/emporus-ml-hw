@@ -32,7 +32,17 @@ def crop_and_reshape(data, sliding_window_size, sample_size, feature_dim):
     data = extract_feature(data, feature_dim)
     # concatenate along the first dimension to an array of shape (*,K)
     data = data.reshape(data.shape[0] * data.shape[1], sliding_window_size)
+
+    # HANDLE  AttributeError: 'float' object has no attribute 'sqrt' from
+    # normalize_samples function
+    # solution from: https://www.programmersought.com/article/21818799868/
+    data = np.float64(data)
     return data
+
+def normalize_samples(data,epsilon=1e-100):
+    mean = np.mean(data, axis=1, keepdims=True)
+    std = np.std(data, axis=1, keepdims=True)
+    return (data - mean) / (std+epsilon)
 
 #################################################
 # Temp. main logic
@@ -46,6 +56,11 @@ data = load_and_assert(file_path)
 sliding_window_size = 30
 sample_size = 10
 feature_dim = 1
-data = crop_and_reshape(data, sliding_window_size, sample_size,feature_dim)
+data = crop_and_reshape(data, sliding_window_size, sample_size, feature_dim)
 
+data = normalize_samples(data)
+
+
+print(np.round(np.mean(data, axis=1, keepdims=True),decimals=4))
+print(np.round(np.std(data, axis=1, keepdims=True), decimals=4))
 print(data.shape)
