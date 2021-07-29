@@ -1,23 +1,34 @@
 import dataprocessing as dpr
+import os
+import numpy as np
 
 #################################################
 # Temp. main logic
 #################################################
 
-## ToDo: organize arch.
-file_path = "/home/myriam/projects/emporus-ml-hw/data/2018-01-02.npy"
-data = dpr.load_and_assert(file_path)
+#ToDo: Organize arch.
 
-## ToDo: organize configuration
-sliding_window_size = 30
-sample_size = 10
-feature_dim = 1
+#################################################
+# Second part
+#################################################
 
-data = dpr.crop_and_reshape(data, sliding_window_size, sample_size, feature_dim)
-data = dpr.normalize_samples(data)
+# 1. Load, normalize and concatenate the first 4 days as training data , sliding window k=360.
+folder_path = "/home/myriam/projects/emporus-ml-hw/data"
+training_data_filenames = ["2018-01-02.npy", "2018-01-03.npy", "2018-01-04.npy", "2018-01-05.npy"]
+test_data_source = ["2018-01-08.npy"]
 
-print(data.shape)
-data[36, 5] = float('NaN')
-data[243, 5] = float('Inf')
-data = dpr.throw_nan_inf(data)
-print(data.shape)
+
+first = True
+for filename in training_data_filenames:
+    file_path = os.sep.join([folder_path, filename])
+    data = dpr.load_data(file_path)
+    if first:
+        training_data = np.expand_dims(data, axis=0)
+        first = False
+    else:
+        try:
+            training_data = np.concatenate((training_data, np.expand_dims(data, axis=0)), axis=0)
+        except ValueError:
+            "data error: dimension mismatch along dates."
+
+
