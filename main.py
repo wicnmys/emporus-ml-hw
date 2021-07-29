@@ -1,6 +1,7 @@
 import dataprocessing as dpr
 import os
 import numpy as np
+import math
 
 #################################################
 # Temp. main logic
@@ -56,6 +57,25 @@ distances, indices = index.search(test_data[:5], k)
 print(distances)
 print(indices)
 
+# c. Once using FAISS-library (use any non flat index).
+# with the help of https://github.com/facebookresearch/faiss/wiki/Guidelines-to-choose-an-index
+# A. How big is the dataset? below 1M vectors => IVF K ,where K is 4*sqrt(N) to 16*sqrt(N)
+k_factor = int(8*math.sqrt(test_data.shape[0]))
+# B. Is memory a concern? Quite important = > OPQM_D,...,PQMx4fsr
+index = faiss.index_factory(360, "IVF" + k_factor +",PQ16")
+index.add(training_data)
+distances, indices = index.search(test_data[:5], k)
+print(distances)
+print(indices)
+
+
+## Why are the distances equal to 0?
+a = test_data[0,:]
+print(a)
+b = training_data[indices[0,0], :]
+print(b)
+dist = np.linalg.norm(a-b)
+print(dist)
 
 
 
