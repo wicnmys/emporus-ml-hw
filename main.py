@@ -33,10 +33,16 @@ for filename in training_data_filenames:
 
 #2. Load and normalize the last day as test data, sliding window k=360.
 file_path = os.sep.join([folder_path, test_data_source])
-data = dpr.load_data(file_path)
-test_data = np.expand_dims(data, axis=0)
+test_data = dpr.load_data(file_path)
 
 # 3. Perform a knn search on the train data for the test data:
 # a. Once using SKlearn-nearestneighbors module, any base algorithm.
 
 from sklearn.neighbors import NearestNeighbors
+nbrs = NearestNeighbors(n_neighbors=10, algorithm='brute').fit(training_data)
+distances, indices = nbrs.kneighbors(test_data)
+# REMARKS from https://scikit-learn.org/stable/modules/neighbors.html
+# when D > 15, the intrinsic dimensionality of the data is generally
+# too high for tree-based methods ==> BRUTE
+
+
