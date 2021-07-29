@@ -40,9 +40,17 @@ def crop_and_reshape(data, sliding_window_size, sample_size, feature_dim):
     return data
 
 def normalize_samples(data,epsilon=1e-100):
+    # 3. Normalize each sample (first dimension) of the new array. The normalized array should
+    # have, for every i: {mean(arr[i,:]) == 0, std(arr[i,:]) == 1}
     mean = np.mean(data, axis=1, keepdims=True)
     std = np.std(data, axis=1, keepdims=True)
     return (data - mean) / (std+epsilon)
+
+def throw_nan_inf(data):
+    #4. Throw away any sample that has any NaN or inf elements
+    log = np.all(np.isfinite(data), axis=1)
+    return data[log, :]
+
 
 #################################################
 # Temp. main logic
@@ -56,11 +64,12 @@ data = load_and_assert(file_path)
 sliding_window_size = 30
 sample_size = 10
 feature_dim = 1
-data = crop_and_reshape(data, sliding_window_size, sample_size, feature_dim)
 
+data = crop_and_reshape(data, sliding_window_size, sample_size, feature_dim)
 data = normalize_samples(data)
 
-
-print(np.round(np.mean(data, axis=1, keepdims=True),decimals=4))
-print(np.round(np.std(data, axis=1, keepdims=True), decimals=4))
+print(data.shape)
+data[36, 5] = float('NaN')
+data[243, 5] = float('Inf')
+data = throw_nan_inf(data)
 print(data.shape)
