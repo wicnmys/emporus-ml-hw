@@ -41,41 +41,40 @@ k=10
 # a. Once using SKlearn-nearestneighbors module, any base algorithm.
 
 from sklearn.neighbors import NearestNeighbors
-nbrs = NearestNeighbors(n_neighbors=k, algorithm='brute').fit(training_data)
-distances, indices = nbrs.kneighbors(test_data[:5])
-print(distances)
-print(indices)
+sklearn_nbrs = NearestNeighbors(n_neighbors=k, algorithm='brute').fit(training_data)
+distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
 # REMARKS from https://scikit-learn.org/stable/modules/neighbors.html
 # when D > 15, the intrinsic dimensionality of the data is generally
 # too high for tree-based methods ==> BRUTE
 
 # b. Once using FAISS-library (use a flat index).
 import faiss
-index = faiss.IndexFlatL2(360)
-index.add(training_data)
-distances, indices = index.search(test_data[:5], k)
-print(distances)
-print(indices)
+faiss_bsc = faiss.IndexFlatL2(360)
+faiss_bsc.add(training_data)
+distances, indices = faiss_bsc.search(test_data[:5], k)
 
 # c. Once using FAISS-library (use any non flat index).
 # with the help of https://github.com/facebookresearch/faiss/wiki/Guidelines-to-choose-an-index
 # A. How big is the dataset? below 1M vectors => IVF K ,where K is 4*sqrt(N) to 16*sqrt(N)
 k_factor = int(8*math.sqrt(test_data.shape[0]))
 # B. Is memory a concern? Quite important = > OPQM_D,...,PQMx4fsr
-index = faiss.index_factory(360, "IVF" + k_factor +",PQ16")
-index.add(training_data)
-distances, indices = index.search(test_data[:5], k)
-print(distances)
-print(indices)
+# 4 <= M <= 64
+# MUST: d % M == 0
+factory_string = "IVF" + str(k_factor) + ",PQ18"
+faiss_sop = faiss.index_factory(360, factory_string)
+assert not faiss_sop.is_trained
+faiss_sop.train(training_data)
+assert faiss_sop.is_trained
+faiss_sop.add(training_data)
+distances, indices = faiss_sop.search(test_data[:5], k)
 
-
-## Why are the distances equal to 0?
-a = test_data[0,:]
-print(a)
-b = training_data[indices[0,0], :]
-print(b)
-dist = np.linalg.norm(a-b)
-print(dist)
-
-
+speed = np.ndarray((2, 256))
+# using euclidean similarity. Also: Manhattan, Minkowski, see
+# https://medium.com/@gshriya195/top-5-distance-similarity-measures-implementation-in-machine-learning-1f68b9ecb0a3
+similarity = np.ndarray((2, 256))
+for n in range(1,256+1):
+    #tic = time.perf_counter()
+    distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
+    distances, indices = faiss_bsc.search(test_data[:5], k)
+    distances, indices = faiss_sop.search(test_data[:5], k)
 
