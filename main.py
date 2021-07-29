@@ -80,7 +80,7 @@ for n in range(1, 256+1):
         toc = time.perf_counter()
         distances, indices = sklearn_nbrs.kneighbors(test_data, n_neighbors=n)
         tic = time.perf_counter()
-        speed[0, n-1] = tic-to  c
+        speed[0, n-1] = tic-toc
         similarity[0, n-1] = np.mean(distances)
 
     ## faiss flat
