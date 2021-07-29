@@ -2,6 +2,8 @@ import dataprocessing as dpr
 import os
 import numpy as np
 import math
+import time
+import matplotlib as plt
 
 #################################################
 # Temp. main logic
@@ -68,13 +70,54 @@ assert faiss_sop.is_trained
 faiss_sop.add(training_data)
 distances, indices = faiss_sop.search(test_data[:5], k)
 
-speed = np.ndarray((2, 256))
-# using euclidean similarity. Also: Manhattan, Minkowski, see
+speed = np.full((3, 256), np.inf)
+# using Euclidean, see
 # https://medium.com/@gshriya195/top-5-distance-similarity-measures-implementation-in-machine-learning-1f68b9ecb0a3
-similarity = np.ndarray((2, 256))
-for n in range(1,256+1):
-    #tic = time.perf_counter()
-    distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
-    distances, indices = faiss_bsc.search(test_data[:5], k)
-    distances, indices = faiss_sop.search(test_data[:5], k)
+similarity = np.full((3, 256), np.inf)
 
+
+for n in range(1, 256+1):
+    print("n = " + str(n))
+    ## sklearn
+    if np.sum(speed[0, np.isfinite(speed[0])]) < 210:
+        toc = time.perf_counter()
+        distances, indices = sklearn_nbrs.kneighbors(test_data, n_neighbors=n)
+        tic = time.perf_counter()
+        speed[0, n-1] = tic-toc
+        similarity[0, n-1] = np.mean(distances)
+
+    ## faiss flat
+    if np.sum(speed[1, np.isfinite(speed[1])]) < 210:
+        toc = time.perf_counter()
+        distances, indices = faiss_bsc.search(test_data, n)
+        tic = time.perf_counter()
+        speed[1, n-1] = tic-toc
+        similarity[1, n - 1] = np.mean(distances)
+
+    ## faiss non-flat
+    if np.sum(speed[2, np.isfinite(speed[2])]) < 210:
+        toc = time.perf_counter()
+        distances, indices = faiss_sop.search(test_data, n)
+        tic = time.perf_counter()
+        speed[2, n-1] = tic-toc
+        similarity[2, n - 1] = np.mean(distances)
+
+fig, axs = plt.subplots(2, 4)
+axs[0,0].plot(np.arange(1, 256+1), speed[0], 'b')
+axs[0,0].set_ylabel('seconds')
+axs[0,0].set_title('sklearn')
+axs[0,1].plot(np.arange(1, 256+1), speed[1], 'g')
+axs[0,1].set_title('faiss-flat')
+axs[0,2].plot(np.arange(1, 256+1), speed[2], 'r')
+axs[0,2].set_title('faiss-not-flat')
+axs[0,3].plot(np.arange(1, 256+1), speed[0], 'b',  np.arange(1, 256+1),
+                    speed[1], 'g', np.arange(1, 256+1), speed[2], 'r')
+axs[0,3].set_title('all')
+
+
+axs[1,0].plot(np.arange(1, 256+1), similarity[0], 'b')
+axs[1,0].set_ylabel('distance')
+axs[1,1].plot(np.arange(1, 256+1), similarity[1], 'g')
+axs[1,2].plot(np.arange(1, 256+1), similarity[2], 'r')
+axs[1,3].plot(np.arange(1, 256+1), similarity[0], 'b',  np.arange(1, 256+1),
+              similarity[1], 'g', np.arange(1, 256+1), similarity[2], 'r')
