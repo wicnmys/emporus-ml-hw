@@ -3,7 +3,7 @@ import os
 import numpy as np
 import math
 import time
-import matplotlib as plt
+import matplotlib.pyplot as plt
 
 #################################################
 # Temp. main logic
@@ -16,10 +16,12 @@ import matplotlib as plt
 #################################################
 
 # 1. Load, normalize and concatenate the first 4 days as training data , sliding window k=360.
+## EDit the folder_path to point to the data folder
 folder_path = "/home/myriam/projects/emporus-ml-hw/data"
 training_data_filenames = ["2018-01-02.npy", "2018-01-03.npy", "2018-01-04.npy", "2018-01-05.npy"]
 test_data_source = "2018-01-08.npy"
 
+max_runtime = 600
 
 first = True
 for filename in training_data_filenames:
@@ -44,7 +46,6 @@ k=10
 
 from sklearn.neighbors import NearestNeighbors
 sklearn_nbrs = NearestNeighbors(n_neighbors=k, algorithm='brute').fit(training_data)
-distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
 # REMARKS from https://scikit-learn.org/stable/modules/neighbors.html
 # when D > 15, the intrinsic dimensionality of the data is generally
 # too high for tree-based methods ==> BRUTE
@@ -53,7 +54,6 @@ distances, indices = sklearn_nbrs.kneighbors(test_data[:5])
 import faiss
 faiss_bsc = faiss.IndexFlatL2(360)
 faiss_bsc.add(training_data)
-distances, indices = faiss_bsc.search(test_data[:5], k)
 
 # c. Once using FAISS-library (use any non flat index).
 # with the help of https://github.com/facebookresearch/faiss/wiki/Guidelines-to-choose-an-index
@@ -68,39 +68,45 @@ assert not faiss_sop.is_trained
 faiss_sop.train(training_data)
 assert faiss_sop.is_trained
 faiss_sop.add(training_data)
-distances, indices = faiss_sop.search(test_data[:5], k)
 
 speed = np.full((3, 256), np.inf)
 # using Euclidean, see
 # https://medium.com/@gshriya195/top-5-distance-similarity-measures-implementation-in-machine-learning-1f68b9ecb0a3
 similarity = np.full((3, 256), np.inf)
 
+# 4. Compare the three approaches on speed as a function of n=number_of_neighboors,
+# from n =1 to n=256.
+# 5. Compare the approaches on results similarity for n=100.
 
+start_time = time.perf_counter()
 for n in range(1, 256+1):
-    print("n = " + str(n))
-    ## sklearn
-    if np.sum(speed[0, np.isfinite(speed[0])]) < 210:
+    if time.perf_counter()-start_time < max_runtime:
+
+        ## sklearn
         toc = time.perf_counter()
         distances, indices = sklearn_nbrs.kneighbors(test_data, n_neighbors=n)
         tic = time.perf_counter()
         speed[0, n-1] = tic-toc
         similarity[0, n-1] = np.mean(distances)
 
-    ## faiss flat
-    if np.sum(speed[1, np.isfinite(speed[1])]) < 210:
+        ## faiss flat
         toc = time.perf_counter()
         distances, indices = faiss_bsc.search(test_data, n)
         tic = time.perf_counter()
         speed[1, n-1] = tic-toc
         similarity[1, n - 1] = np.mean(distances)
 
-    ## faiss non-flat
-    if np.sum(speed[2, np.isfinite(speed[2])]) < 210:
+        ## faiss non-flat
         toc = time.perf_counter()
         distances, indices = faiss_sop.search(test_data, n)
         tic = time.perf_counter()
         speed[2, n-1] = tic-toc
         similarity[2, n - 1] = np.mean(distances)
+
+##################################
+# Plots
+#################################
+
 
 fig, axs = plt.subplots(2, 4)
 axs[0,0].plot(np.arange(1, 256+1), speed[0], 'b')
@@ -115,9 +121,11 @@ axs[0,3].plot(np.arange(1, 256+1), speed[0], 'b',  np.arange(1, 256+1),
 axs[0,3].set_title('all')
 
 
-axs[1,0].plot(np.arange(1, 256+1), similarity[0], 'b')
+axs[1,0].plot(np.arange(1, 100+1), similarity[0, :100], 'b')
 axs[1,0].set_ylabel('distance')
-axs[1,1].plot(np.arange(1, 256+1), similarity[1], 'g')
-axs[1,2].plot(np.arange(1, 256+1), similarity[2], 'r')
-axs[1,3].plot(np.arange(1, 256+1), similarity[0], 'b',  np.arange(1, 256+1),
-              similarity[1], 'g', np.arange(1, 256+1), similarity[2], 'r')
+axs[1,1].plot(np.arange(1, 100+1), similarity[1, :100], 'g')
+axs[1,2].plot(np.arange(1, 100+1), similarity[2, :100], 'r')
+axs[1,3].plot(np.arange(1, 100+1), similarity[0, :100], 'b',  np.arange(1, 100+1),
+              similarity[1, :100], 'g', np.arange(1, 100+1), similarity[2, :100], 'r')
+
+plt.show(block=True)
