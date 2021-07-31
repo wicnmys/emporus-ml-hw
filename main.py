@@ -5,6 +5,8 @@ import math
 import time
 import matplotlib.pyplot as plt
 
+from knnmethod import FaissKNN, SklearnKNN
+
 #################################################
 # Temp. main logic
 #################################################
@@ -21,7 +23,7 @@ folder_path = "/home/myriam/projects/emporus-ml-hw/data"
 training_data_filenames = ["2018-01-02.npy", "2018-01-03.npy", "2018-01-04.npy", "2018-01-05.npy"]
 test_data_source = "2018-01-08.npy"
 
-max_runtime = 600
+max_runtime = 30
 
 first = True
 for filename in training_data_filenames:
@@ -40,68 +42,28 @@ for filename in training_data_filenames:
 file_path = os.sep.join([folder_path, test_data_source])
 test_data = dpr.load_data(file_path)
 
-# 3. Perform a knn search on the train data for the test data:
-k=10
-# a. Once using SKlearn-nearestneighbors module, any base algorithm.
-
-from sklearn.neighbors import NearestNeighbors
-sklearn_nbrs = NearestNeighbors(n_neighbors=k, algorithm='brute').fit(training_data)
-# REMARKS from https://scikit-learn.org/stable/modules/neighbors.html
-# when D > 15, the intrinsic dimensionality of the data is generally
-# too high for tree-based methods ==> BRUTE
-
-# b. Once using FAISS-library (use a flat index).
-import faiss
-faiss_bsc = faiss.IndexFlatL2(360)
-faiss_bsc.add(training_data)
-
-# c. Once using FAISS-library (use any non flat index).
-# with the help of https://github.com/facebookresearch/faiss/wiki/Guidelines-to-choose-an-index
-# A. How big is the dataset? below 1M vectors => IVF K ,where K is 4*sqrt(N) to 16*sqrt(N)
 k_factor = int(8*math.sqrt(test_data.shape[0]))
-# B. Is memory a concern? Quite important = > OPQM_D,...,PQMx4fsr
-# 4 <= M <= 64
-# MUST: d % M == 0
-factory_string = "IVF" + str(k_factor) + ",PQ18"
-faiss_sop = faiss.index_factory(360, factory_string)
-assert not faiss_sop.is_trained
-faiss_sop.train(training_data)
-assert faiss_sop.is_trained
-faiss_sop.add(training_data)
 
-speed = np.full((3, 256), np.inf)
-# using Euclidean, see
-# https://medium.com/@gshriya195/top-5-distance-similarity-measures-implementation-in-machine-learning-1f68b9ecb0a3
-similarity = np.full((3, 256), np.inf)
+methods = [SklearnKNN('brute'), FaissKNN(360, "IVF" + str(k_factor) + ",Flat"),
+           FaissKNN(360, "IVF" + str(k_factor) + ",PQ18")]
 
-# 4. Compare the three approaches on speed as a function of n=number_of_neighboors,
-# from n =1 to n=256.
-# 5. Compare the approaches on results similarity for n=100.
+for method in methods:
+    method.train(training_data)
 
-start_time = time.perf_counter()
+speed = np.full((len(methods)+1, 256), np.inf)
+similarity = np.full((len(methods)+1, 256), np.inf)
+
 for n in range(1, 256+1):
-    if time.perf_counter()-start_time < max_runtime:
+    if np.sum(speed[0, np.isfinite(speed[0])]) < max_runtime:
+        counter = 0
+        for method in methods:
+            toc = time.perf_counter()
+            distances, indices = method.search(test_data, n)
+            tic = time.perf_counter()
+            speed[counter, n-1] = tic-toc
+            similarity[counter, n-1] = np.mean(distances)
+            counter += 1
 
-        ## sklearn
-        toc = time.perf_counter()
-        distances, indices = sklearn_nbrs.kneighbors(test_data, n_neighbors=n)
-        tic = time.perf_counter()
-        speed[0, n-1] = tic-toc
-        similarity[0, n-1] = np.mean(distances)
-
-        ## faiss flat
-        toc = time.perf_counter()
-        distances, indices = faiss_bsc.search(test_data, n)
-        tic = time.perf_counter()
-        speed[1, n-1] = tic-toc
-        similarity[1, n - 1] = np.mean(distances)
-
-        ## faiss non-flat
-        toc = time.perf_counter()
-        distances, indices = faiss_sop.search(test_data, n)
-        tic = time.perf_counter()
-        speed[2, n-1] = tic-toc
-        similarity[2, n - 1] = np.mean(distances)
 
 ##################################
 # Plots
